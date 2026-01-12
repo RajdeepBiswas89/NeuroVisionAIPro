@@ -32,7 +32,24 @@ MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 
 predictor = None
 
 print(f'🔧 Model path configured: {MODEL_PATH}')
+
+# Check if we're running in Render environment
+import platform
+print(f'💻 Platform: {platform.platform()}')
 print(f'📁 Model file exists: {os.path.exists(MODEL_PATH)}')
+if os.path.exists(MODEL_PATH):
+    print(f'📏 Model file size: {os.path.getsize(MODEL_PATH)} bytes')
+else:
+    print('⚠️ Model file does not exist at startup')
+    print('📋 Contents of models directory:')
+    models_dir = os.path.dirname(MODEL_PATH)
+    if os.path.exists(models_dir):
+        for item in os.listdir(models_dir):
+            item_path = os.path.join(models_dir, item)
+            size = os.path.getsize(item_path) if os.path.isfile(item_path) else 'DIR'
+            print(f'  - {item}: {size}')
+    else:
+        print('  - models directory does not exist')
 
 # Try to load model on startup, but don't crash if not available
 def initialize_predictor():
