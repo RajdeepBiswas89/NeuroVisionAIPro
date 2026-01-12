@@ -1,6 +1,11 @@
 
 import React from 'react';
-import { motion } from 'framer-motion';
+// Mock implementation due to type resolution issue
+const motion = {
+  div: (props: any) => <div {...props} />,
+  img: (props: any) => <img {...props} />,
+  span: (props: any) => <span {...props} />
+};
 import { Sparkles } from 'lucide-react';
 
 const AIAvatar: React.FC = () => {

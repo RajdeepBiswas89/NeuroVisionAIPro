@@ -101,7 +101,12 @@ const ScanAnalyzePage: React.FC<ScanAnalyzePageProps> = ({ onAnalysisComplete })
       setProgress(0);
       // Show a more descriptive error message to the user
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-      alert(Analysis failed: \n\nPlease ensure:\n1. Backend is running at: \n2. Internet connection is stable\n3. File is a valid image);
+      alert(`Analysis failed: 
+
+Please ensure:
+1. Backend is running at: ${API_URL}
+2. Internet connection is stable
+3. File is a valid image`);
     }
   };
 

@@ -35,6 +35,7 @@ export enum AppRoute {
   PATIENTS = 'patients',
   SCAN = 'scan',
   RESULTS = 'results',
+  MEDICINE_ORDER = 'medicine_order',
   COLLABORATION = 'collaboration',
   ANALYTICS = 'analytics',
   SETTINGS = 'settings',

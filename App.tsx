@@ -7,6 +7,7 @@ import PatientsPage from './pages/PatientsPage';
 import ScanAnalyzePage from './pages/ScanAnalyzePage';
 import ResultsPage from './pages/ResultsPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
+import MedicineOrderPage from './pages/MedicineOrderPage';
 import FuturisticAIChat from './components/FuturisticAIChat';
 import ParticleField from './components/ParticleField';
 import VoiceCommandSystem from './components/VoiceCommandSystem';
@@ -98,6 +99,8 @@ const App: React.FC = () => {
       case AppRoute.RESULTS:
         const scan = scans.find(s => s.id === selectedScanId) || scans[0];
         return <ResultsPage scan={scan} />;
+      case AppRoute.MEDICINE_ORDER:
+        return <MedicineOrderPage />;
       case AppRoute.KNOWLEDGE_BASE:
         return <KnowledgeBasePage />;
       default:
