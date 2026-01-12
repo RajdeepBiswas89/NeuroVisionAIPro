@@ -4,6 +4,9 @@ import { Upload, File, CheckCircle2, AlertCircle, Play, Info, ShieldAlert } from
 import { ScanResult, TumorClass } from '../types';
 import MedicalHologram from '../components/MedicalHologram';
 
+// Get API URL from environment variable or default to localhost
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 interface ScanAnalyzePageProps {
   onAnalysisComplete: (scan: ScanResult) => void;
 }
@@ -60,7 +63,7 @@ const ScanAnalyzePage: React.FC<ScanAnalyzePageProps> = ({ onAnalysisComplete })
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:8000/predict', {
+      const response = await fetch(`${API_URL}/predict`, {
         method: 'POST',
         body: formData,
       });
