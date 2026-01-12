@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MedicineService } from './MedicineAPIService';
+import UPICheckout from './UPICheckout';
 
 // Mock implementation due to type resolution issue
 const motion = {
@@ -55,9 +56,38 @@ const MedicineOrderService: React.FC = () => {
   const [showPayment, setShowPayment] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [showUPICheckout, setShowUPICheckout] = useState(false);
 
-  // Load initial medicines
+  // Load initial medicines and get user location
   useEffect(() => {
+    // Get user's location
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          });
+          console.log('User location:', position.coords.latitude, position.coords.longitude);
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          // Fallback to Mumbai coordinates
+          setUserLocation({
+            lat: 19.0760,
+            lng: 72.8777
+          });
+        }
+      );
+    } else {
+      // Fallback to Mumbai coordinates
+      setUserLocation({
+        lat: 19.0760,
+        lng: 72.8777
+      });
+    }
+    
     const fetchInitialMedicines = async () => {
       try {
         const initialMedicines = await MedicineService.comparePrices('Temozolomide');
@@ -187,11 +217,25 @@ const MedicineOrderService: React.FC = () => {
     
     try {
       // Prepare order data
+      // Extract coordinates from delivery address if present
+      let deliveryLat = 0;
+      let deliveryLng = 0;
+      
+      if (deliveryAddress.includes('Current location:')) {
+        const coordsMatch = deliveryAddress.match(/Current location: ([\d.-]+), ([\d.-]+)/);
+        if (coordsMatch) {
+          deliveryLat = parseFloat(coordsMatch[1]);
+          deliveryLng = parseFloat(coordsMatch[2]);
+        }
+      }
+      
       const orderData = {
         user_id: 'current_user', // In a real app, this would come from auth
         medicines: selectedMedicines,
         total_amount: calculateTotal() + 50, // Including delivery fee
         delivery_address: deliveryAddress,
+        delivery_lat: deliveryLat,
+        delivery_lng: deliveryLng,
         upi_transaction_id: `TXN${Date.now()}` // Simulated transaction ID
       };
       
@@ -215,8 +259,13 @@ const MedicineOrderService: React.FC = () => {
   };
 
   const handlePayWithUPI = () => {
-    // Simulate UPI payment
-    alert('Redirecting to UPI payment gateway...');
+    // Close the payment modal and show the UPICheckout component
+    setShowPayment(false);
+    setShowUPICheckout(true);
+  };
+  
+  const handlePaymentSuccess = () => {
+    setShowUPICheckout(false);
     handlePlaceOrder();
   };
 
@@ -329,9 +378,33 @@ const MedicineOrderService: React.FC = () => {
               </div>
 
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Delivery Address
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Delivery Address
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator.geolocation) {
+                        navigator.geolocation.getCurrentPosition(
+                          (position) => {
+                            // In a real app, we would reverse geocode the coordinates to get address
+                            // For now, we'll just show coordinates
+                            setDeliveryAddress(`Current location: ${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`);
+                          },
+                          (error) => {
+                            alert('Unable to get your location. Please enter address manually.');
+                          }
+                        );
+                      } else {
+                        alert('Geolocation is not supported by your browser.');
+                      }
+                    }}
+                    className="text-xs bg-[#4CC9F0] text-white px-2 py-1 rounded-lg hover:bg-[#2A9D8F]"
+                  >
+                    Use My Location
+                  </button>
+                </div>
                 <textarea
                   value={deliveryAddress}
                   onChange={(e) => setDeliveryAddress(e.target.value)}
@@ -339,10 +412,21 @@ const MedicineOrderService: React.FC = () => {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4CC9F0]"
                   rows={3}
                 />
+                {userLocation && (
+                  <div className="mt-1 text-xs text-gray-500">
+                    Current coordinates: {userLocation.lat.toFixed(6)}, {userLocation.lng.toFixed(6)}
+                  </div>
+                )}
               </div>
 
               <button
-                onClick={() => setShowPayment(true)}
+                onClick={() => {
+                  if (!deliveryAddress.trim()) {
+                    alert('Please enter your delivery address');
+                    return;
+                  }
+                  setShowPayment(true);
+                }}
                 disabled={selectedMedicines.length === 0 || !deliveryAddress.trim()}
                 className={`w-full py-3 rounded-xl font-bold text-white ${
                   selectedMedicines.length === 0 || !deliveryAddress.trim()
@@ -352,6 +436,11 @@ const MedicineOrderService: React.FC = () => {
               >
                 Proceed to Payment
               </button>
+              {userLocation && (
+                <div className="mt-2 text-sm text-gray-500 text-center">
+                  Location: {userLocation.lat.toFixed(4)}, {userLocation.lng.toFixed(4)}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -406,6 +495,42 @@ const MedicineOrderService: React.FC = () => {
           </motion.div>
         </motion.div>
       )}
+      
+      {/* UPI Checkout Component */}
+      {showUPICheckout && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-2xl"
+          >
+            <UPICheckout 
+              orderSummary={{
+                subtotal: calculateTotal(),
+                deliveryFee: 50,
+                commission: calculateCommission(),
+                total: calculateTotal() + 50,
+                medicines: selectedMedicines.map(med => ({
+                  name: med.name,
+                  quantity: 1, // assuming 1 unit for each medicine
+                  price: med.price
+                }))
+              }}
+              onPaymentSuccess={handlePaymentSuccess}
+            />
+            <button
+              onClick={() => setShowUPICheckout(false)}
+              className="mt-4 w-full py-2 bg-red-500 text-white rounded-lg font-bold hover:bg-red-600"
+            >
+              Cancel Payment
+            </button>
+          </motion.div>
+        </motion.div>
+      )}
 
       {/* Order Confirmation */}
       {orderPlaced && (
@@ -423,6 +548,9 @@ const MedicineOrderService: React.FC = () => {
             <h3 className="text-2xl font-bold text-[#0A2463] mb-2">Order Placed Successfully!</h3>
             <p className="text-gray-600 mb-4">
               Your medicines will be delivered in approximately {(Math.max(...selectedMedicines.map(m => parseInt(m.estimatedDelivery))) + 10)} minutes.
+              {deliveryAddress && (
+                <span className="block mt-2">Delivery to: {deliveryAddress.length > 50 ? deliveryAddress.substring(0, 50) + '...' : deliveryAddress}</span>
+              )}
             </p>
             <button
               onClick={() => setOrderPlaced(false)}

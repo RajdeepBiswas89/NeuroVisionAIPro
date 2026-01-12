@@ -20,6 +20,8 @@ interface OrderRequest {
   medicines: Medicine[];
   total_amount: number;
   delivery_address: string;
+  delivery_lat?: number;
+  delivery_lng?: number;
   upi_transaction_id?: string;
 }
 

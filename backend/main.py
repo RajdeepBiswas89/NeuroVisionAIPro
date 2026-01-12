@@ -274,6 +274,9 @@ def init_db():
             total_amount REAL,
             commission REAL,
             status TEXT,
+            delivery_address TEXT,
+            delivery_lat REAL,
+            delivery_lng REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -330,6 +333,9 @@ async def place_order(request: Request):
     user_id = data.get('user_id', 'anonymous')
     medicines = json.dumps(data.get('medicines', []))
     total_amount = data.get('total_amount', 0)
+    delivery_address = data.get('delivery_address', '')
+    delivery_lat = data.get('delivery_lat', 0.0)
+    delivery_lng = data.get('delivery_lng', 0.0)
     commission = total_amount * 0.05  # 5% commission
     
     # Save order to database
@@ -338,8 +344,8 @@ async def place_order(request: Request):
     
     try:
         cursor.execute(
-            "INSERT INTO orders (order_id, user_id, medicines, total_amount, commission, status) VALUES (?, ?, ?, ?, ?, ?)",
-            (order_id, user_id, medicines, total_amount, commission, 'placed')
+            "INSERT INTO orders (order_id, user_id, medicines, total_amount, commission, status, delivery_address, delivery_lat, delivery_lng) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (order_id, user_id, medicines, total_amount, commission, 'placed', delivery_address, delivery_lat, delivery_lng)
         )
         conn.commit()
         
@@ -351,7 +357,8 @@ async def place_order(request: Request):
             'order_id': order_id,
             'commission_sent': commission,
             'total_paid': total_amount,
-            'message': f'Order placed successfully. ₹{commission:.2f} commission sent to rajdeepbiswas403-1@okhdfcbank'
+            'message': f'Order placed successfully. ₹{commission:.2f} commission sent to rajdeepbiswas403-1@okhdfcbank',
+            'order_id': order_id
         }
     except Exception as e:
         return {'success': False, 'error': str(e)}
@@ -375,7 +382,10 @@ async def get_order_status(order_id: str):
                 'total_amount': order[4],
                 'commission': order[5],
                 'status': order[6],
-                'created_at': order[7]
+                'delivery_address': order[7],
+                'delivery_lat': order[8],
+                'delivery_lng': order[9],
+                'created_at': order[10]
             }
         else:
             raise HTTPException(status_code=404, detail="Order not found")
@@ -397,7 +407,7 @@ async def get_analytics():
         total_commission = cursor.fetchone()[0] or 0
         
         # Get recent orders
-        cursor.execute("SELECT order_id, total_amount, commission, status, created_at FROM orders ORDER BY created_at DESC LIMIT 5")
+        cursor.execute("SELECT order_id, total_amount, commission, status, delivery_address, delivery_lat, delivery_lng, created_at FROM orders ORDER BY created_at DESC LIMIT 5")
         recent_orders = cursor.fetchall()
         
         return {
@@ -409,7 +419,10 @@ async def get_analytics():
                     'total_amount': row[1],
                     'commission': row[2],
                     'status': row[3],
-                    'created_at': row[4]
+                    'delivery_address': row[4],
+                    'delivery_lat': row[5],
+                    'delivery_lng': row[6],
+                    'created_at': row[7]
                 }
                 for row in recent_orders
             ]
