@@ -14,18 +14,22 @@ The application has two main components:
 - GitHub account
 - Vercel account
 - Completed GitHub repository setup
+- Backend already deployed on Render
 
 ### Steps
-1. Push all code to the GitHub repository
-2. Go to [Vercel](https://vercel.com)
-3. Sign in with your GitHub account
-4. Click "New Project" and select your repository
-5. Configure environment variables:
+1. Deploy backend first (see Backend Deployment section)
+2. Get your backend URL from Render dashboard
+3. Push all code to the GitHub repository
+4. Go to [Vercel](https://vercel.com)
+5. Sign in with your GitHub account
+6. Click "New Project" and select your repository
+7. Configure environment variables:
    - `VITE_API_URL`: URL of your deployed backend API
-6. Deploy the project
+8. Deploy the project
 
 ### Environment Variables for Vercel
 - `VITE_API_URL`: Point this to your backend API URL (e.g., `https://your-app-name.onrender.com`)
+  **Important**: The backend must be deployed and running before setting this value
 
 ## Backend Deployment (Render)
 
@@ -73,11 +77,19 @@ The medicine ordering system includes:
 ### Frontend Issues
 - Ensure `VITE_API_URL` is correctly set to your backend URL
 - Check browser console for API connection errors
+- If predictions aren't working, verify the backend is deployed and accessible
+- Make sure you're testing with the correct domain after deployment
 
 ### Backend Issues
 - Verify model file is accessible and properly downloaded
 - Check Render logs for any startup errors
 - Ensure the database initializes correctly
+
+### Connection Issues Between Frontend and Backend
+- The most common issue is incorrect `VITE_API_URL` configuration
+- Make sure the backend is fully deployed and responding before configuring the frontend
+- Test your backend API directly (e.g., visit https://your-backend.onrender.com/) to ensure it's running
+- Check CORS settings if you encounter cross-origin errors
 
 ### Model Download Issues
 - The `download_model.py` script handles model download during deployment
