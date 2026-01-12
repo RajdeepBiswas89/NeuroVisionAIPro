@@ -27,21 +27,28 @@ async def root() -> Dict[str, str]:
     return {'message': 'Brain Tumor Detection API is running'}
 
 
-# Model loading
+# Model loading - Initialize as None, will be loaded when first prediction is made
 MODEL_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'models', 'brain_tumor_vit_model.pth')
 predictor = None
 
-try:
+print(f'🔧 Model path configured: {MODEL_PATH}')
+print(f'📁 Model file exists: {os.path.exists(MODEL_PATH)}')
+
+# Try to load model on startup, but don't crash if not available
+def initialize_predictor():
+    global predictor
     if os.path.exists(MODEL_PATH):
-        predictor = get_predictor(MODEL_PATH)
-        print(f'✅ Model loaded successfully from {MODEL_PATH}')
+        try:
+            predictor = get_predictor(MODEL_PATH)
+            print(f'✅ Model loaded successfully from {MODEL_PATH}')
+        except Exception as e:
+            print(f'⚠️ Could not load model on startup: {e}')
+            print('API will load model on first prediction')
     else:
         print(f'⚠️ Model file not found at {MODEL_PATH}')
-        predictor = None
-except Exception as e:
-    print(f'⚠️ Could not load model: {e}')
-    print('API will return demo predictions')
-    predictor = None
+        print('API will load model when first prediction is made')
+
+initialize_predictor()
 
 
 @app.post('/predict')
@@ -57,29 +64,44 @@ async def predict(file: UploadFile = File(...)) -> Dict:
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid image file")
 
-    # If the model isn't loaded, return a graceful stub response
+    # Ensure model is loaded
+    global predictor
     if predictor is None:
-        # Stub probabilities to let the UI/client work while model is not ready
-        probs = {
-            'Glioma': 0.10,
-            'Meningioma': 0.70,
-            'No Tumor': 0.05,
-            'Pituitary': 0.15,
-        }
-        predicted = max(probs, key=probs.get)
-        return {
-            'class': predicted,
-            'confidence': round(probs[predicted], 4),
-            'all_probabilities': probs,
-        }
+        print("🔄 Loading model on first prediction...")
+        if os.path.exists(MODEL_PATH):
+            try:
+                predictor = get_predictor(MODEL_PATH)
+                print(f'✅ Model loaded successfully from {MODEL_PATH} on first prediction')
+            except Exception as e:
+                print(f'❌ Could not load model: {e}')
+                # Return demo response if model can't be loaded
+                probs = {
+                    'Glioma': 0.10,
+                    'Meningioma': 0.70,
+                    'No Tumor': 0.05,
+                    'Pituitary': 0.15,
+                }
+                predicted = max(probs, key=probs.get)
+                return {
+                    'class': predicted,
+                    'confidence': round(probs[predicted], 4),
+                    'all_probabilities': probs,
+                }
+        else:
+            print(f'❌ Model file not found at {MODEL_PATH}')
+            raise HTTPException(status_code=500, detail="Model file not found")
 
     # Real inference
-    result = predictor.predict(image)
-    return {
-        'class': result['prediction'],
-        'confidence': round(result['confidence'], 4),
-        'all_probabilities': result['probabilities'],
-    }
+    try:
+        result = predictor.predict(image)
+        return {
+            'class': result['prediction'],
+            'confidence': round(result['confidence'], 4),
+            'all_probabilities': result['probabilities'],
+        }
+    except Exception as e:
+        print(f'❌ Prediction error: {e}')
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
 if __name__ == '__main__':
