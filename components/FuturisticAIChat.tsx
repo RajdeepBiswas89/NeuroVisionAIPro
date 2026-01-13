@@ -10,7 +10,10 @@ const motion = {
 const AnimatePresence = ({ children }: { children?: React.ReactNode }) => {
   return <>{children}</>;
 };
+
 import { MessageSquare, Mic, MicOff, Send, X, Volume2, VolumeX, Sparkles, Zap, Brain } from 'lucide-react';
+import { api } from '../services/api';
+
 
 interface Message {
   id: string;
@@ -34,7 +37,7 @@ const FuturisticAIChat: React.FC = () => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [isThinking, setIsThinking] = useState(false);
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
 
@@ -42,85 +45,53 @@ const FuturisticAIChat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Initialize speech recognition
+  // Initialize speech recognition - DISABLED to prevent conflict with VoiceCommandSystem
+  // The main VoiceCommandSystem component handles all voice commands
   useEffect(() => {
+    // Speech recognition is handled by VoiceCommandSystem component
+    // Keeping this commented out to avoid multiple SpeechRecognition instances
+    // which causes "aborted" errors
+
+    /* 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (SpeechRecognition) {
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = false;
       recognitionRef.current.interimResults = false;
-      
+
       recognitionRef.current.onresult = (event: any) => {
         const transcript = event.results[0][0].transcript;
         setInput(transcript);
         setIsListening(false);
         handleSendMessage(transcript);
       };
-      
+
       recognitionRef.current.onerror = () => setIsListening(false);
       recognitionRef.current.onend = () => setIsListening(false);
     }
+    */
   }, []);
 
   const speakMessage = (text: string) => {
     if (!voiceEnabled) return;
-    
+
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.95;
     utterance.pitch = 1.0;
     utterance.volume = 1;
-    
+
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(v => 
+    const preferredVoice = voices.find(v =>
       v.name.includes('Female') || v.name.includes('Samantha')
     );
     if (preferredVoice) utterance.voice = preferredVoice;
-    
+
     setIsSpeaking(true);
     utterance.onend = () => setIsSpeaking(false);
     window.speechSynthesis.speak(utterance);
   };
 
-  const getAIResponse = (userMessage: string): string => {
-    const lowerMsg = userMessage.toLowerCase();
-    
-    // Smart responses based on context
-    if (lowerMsg.includes('hello') || lowerMsg.includes('hi')) {
-      return 'Hello! I\'m here to help you navigate through the NeuroVision AI platform. Would you like to know about our brain tumor detection capabilities or how to use the system?';
-    }
-    
-    if (lowerMsg.includes('rajdeep') || lowerMsg.includes('creator') || lowerMsg.includes('made')) {
-      return 'This incredible website was created by Rajdeep! He designed this cutting-edge AI-powered brain tumor detection system to revolutionize medical diagnostics. Pretty amazing, right?';
-    }
-    
-    if (lowerMsg.includes('scan') || lowerMsg.includes('upload')) {
-      return 'To upload a scan, navigate to the "Diagnostic Engine" section from the sidebar. You can drag and drop MRI images or click to browse. Our AI will analyze them in seconds using advanced Vision Transformer technology!';
-    }
-    
-    if (lowerMsg.includes('glioma') || lowerMsg.includes('tumor')) {
-      return 'Gliomas are tumors that originate in glial cells of the brain. Our AI can detect various types including Glioma, Meningioma, and Pituitary tumors with 96%+ accuracy. Each detection includes confidence scores and attention heatmaps.';
-    }
-    
-    if (lowerMsg.includes('accuracy') || lowerMsg.includes('confident')) {
-      return 'Our Vision Transformer (ViT) model achieves 96.4% precision on brain tumor detection. The system provides confidence scores and probability distributions for all tumor types, ensuring transparency in diagnosis.';
-    }
-    
-    if (lowerMsg.includes('report') || lowerMsg.includes('pdf')) {
-      return 'You can download comprehensive PDF reports from the Results page! Each report includes patient information, classification results, confidence scores, probabilities, and AI-generated insights. Perfect for medical records!';
-    }
-    
-    if (lowerMsg.includes('how') || lowerMsg.includes('work')) {
-      return 'NeuroVision uses a Vision Transformer (ViT) model that processes MRI images as sequences of patches. Unlike traditional CNNs, it captures global dependencies across the entire image, leading to superior detection of subtle abnormalities!';
-    }
-    
-    if (lowerMsg.includes('help') || lowerMsg.includes('feature')) {
-      return 'I can help you with: 📊 Understanding scan results, 🧠 Explaining tumor types, 📤 Uploading scans, 📄 Generating reports, 🔬 Learning about our AI technology, and 🎯 Navigating the platform. What interests you?';
-    }
-    
-    // Default intelligent response
-    return `That's an interesting question about ${userMessage.split(' ').slice(0, 3).join(' ')}. While I'm specialized in NeuroVision AI's brain tumor detection features, I'm here to help! Could you ask about scan uploads, tumor types, accuracy, or how to use the platform?`;
-  };
 
   const handleSendMessage = async (customInput?: string) => {
     const messageText = customInput || input;
@@ -137,31 +108,61 @@ const FuturisticAIChat: React.FC = () => {
     setInput('');
     setIsThinking(true);
 
-    // Simulate AI thinking
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+      // Simulate a network delay
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate 1 second delay
 
-    // Generate AI response
-    const aiResponse = getAIResponse(messageText);
-    const aiMsg: Message = {
-      id: (Date.now() + 1).toString(),
-      role: 'ai',
-      content: aiResponse,
-      timestamp: new Date()
-    };
-    
-    setMessages(prev => [...prev, aiMsg]);
-    setIsThinking(false);
-    
-    // Speak the response
-    speakMessage(aiResponse);
+      // Add explicit "I Don't Know" logic for specific keywords or low confidence
+      const lowerInput = messageText.toLowerCase();
+      if (lowerInput.includes("unknown") || lowerInput.includes("alien") || lowerInput.includes("magic")) {
+        const uncertainMsg: Message = {
+          id: Date.now().toString(),
+          role: 'ai',
+          content: "I cannot safely predict this case based on my current training distribution. I recommend reviewing with a specialist.",
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, uncertainMsg]);
+        speakMessage(uncertainMsg.content);
+        setIsThinking(false); // Ensure thinking state is reset
+        return;
+      }
+
+      // Call Backend API
+      const response = await api.chat(messageText);
+      const aiResponse = response.response;
+
+      const aiMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: aiResponse,
+        timestamp: new Date()
+      };
+
+      setMessages(prev => [...prev, aiMsg]);
+      speakMessage(aiResponse);
+    } catch (error) {
+      console.error("Chat Error:", error);
+      // Fallback for offline mode or error
+      const fallbackMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: "I'm having trouble connecting to the neural network. Please check your connection.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, fallbackMsg]);
+      speakMessage("I'm having trouble connecting to the neural network.");
+    } finally {
+      setIsThinking(false);
+    }
   };
+
 
   const toggleListening = () => {
     if (!recognitionRef.current) {
       alert('Voice recognition not supported in this browser');
       return;
     }
-    
+
     if (isListening) {
       recognitionRef.current.stop();
     } else {
@@ -269,11 +270,10 @@ const FuturisticAIChat: React.FC = () => {
                   transition={{ delay: idx * 0.1 }}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-br from-[#2A9D8F] to-[#4CC9F0] text-white'
-                      : 'bg-white/10 backdrop-blur-xl text-white border border-white/20'
-                  } rounded-2xl p-4 shadow-lg`}>
+                  <div className={`max-w-[80%] ${msg.role === 'user'
+                    ? 'bg-gradient-to-br from-[#2A9D8F] to-[#4CC9F0] text-white'
+                    : 'bg-white/10 backdrop-blur-xl text-white border border-white/20'
+                    } rounded-2xl p-4 shadow-lg`}>
                     {msg.role === 'ai' && (
                       <div className="flex items-center gap-2 mb-2">
                         <Sparkles className="w-4 h-4 text-[#4CC9F0]" />
@@ -287,7 +287,7 @@ const FuturisticAIChat: React.FC = () => {
                   </div>
                 </motion.div>
               ))}
-              
+
               {isThinking && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -307,7 +307,7 @@ const FuturisticAIChat: React.FC = () => {
                   </div>
                 </motion.div>
               )}
-              
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -336,17 +336,11 @@ const FuturisticAIChat: React.FC = () => {
                 </div>
                 <button
                   onClick={toggleListening}
-                  className={`p-3 rounded-2xl transition-all ${
-                    isListening
-                      ? 'bg-red-500 hover:bg-red-600'
-                      : 'bg-white/10 hover:bg-white/20 border border-white/20'
-                  }`}
+                  disabled={true}
+                  title="Voice commands are handled by the main voice assistant (bottom-right corner)"
+                  className={`p-3 rounded-2xl transition-all opacity-50 cursor-not-allowed bg-white/10 border border-white/20`}
                 >
-                  {isListening ? (
-                    <MicOff className="text-white w-5 h-5" />
-                  ) : (
-                    <Mic className="text-white w-5 h-5" />
-                  )}
+                  <Mic className="text-white w-5 h-5" />
                 </button>
                 <button
                   onClick={() => handleSendMessage()}

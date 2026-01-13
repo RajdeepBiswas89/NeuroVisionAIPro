@@ -66,7 +66,7 @@ const InteractiveAvatar: React.FC = () => {
   ]);
   const [hasError, setHasError] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const recognitionRef = useRef<any>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -76,15 +76,15 @@ const InteractiveAvatar: React.FC = () => {
     const handleError = (event: ErrorEvent) => {
       console.error('InteractiveAvatar Error:', event.error);
       // Only set error if it's a critical failure, not for API issues
-      if (event.error?.message?.includes('Failed to fetch') || 
-          event.error?.message?.includes('NetworkError') ||
-          event.error?.message?.includes('API')) {
+      if (event.error?.message?.includes('Failed to fetch') ||
+        event.error?.message?.includes('NetworkError') ||
+        event.error?.message?.includes('API')) {
         console.warn('API Error detected, but component will continue rendering');
       } else {
         setHasError(true);
       }
     };
-    
+
     window.addEventListener('error', handleError);
     return () => window.removeEventListener('error', handleError);
   }, []);
@@ -118,10 +118,16 @@ const InteractiveAvatar: React.FC = () => {
     }
   }, []);
 
-  // Initialize Speech Recognition with defensive check
+  // Initialize Speech Recognition - DISABLED to prevent conflict with VoiceCommandSystem
+  // The main VoiceCommandSystem component handles all voice commands
   useEffect(() => {
     if (!isInitialized) return;
-    
+
+    // Speech recognition is handled by VoiceCommandSystem component
+    // Keeping this commented out to avoid multiple SpeechRecognition instances
+    // which causes "aborted" errors
+
+    /*
     try {
       const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (SpeechRecognition && typeof SpeechRecognition === 'function') {
@@ -143,6 +149,7 @@ const InteractiveAvatar: React.FC = () => {
     } catch (e) {
       console.warn("Speech recognition initialization failed:", e);
     }
+    */
   }, [isInitialized]);
 
   const speakResponse = async (text: string) => {
@@ -152,13 +159,13 @@ const InteractiveAvatar: React.FC = () => {
         console.warn('Gemini API key not found. Text-to-speech will be disabled.');
         return;
       }
-      
+
       // Check if GoogleGenAI is available
       if (typeof GoogleGenAI === 'undefined') {
         console.warn('GoogleGenAI not available. Text-to-speech disabled.');
         return;
       }
-      
+
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-preview-tts",
@@ -178,7 +185,7 @@ const InteractiveAvatar: React.FC = () => {
         if (!audioContextRef.current) {
           audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 24000 });
         }
-        
+
         const audioBuffer = await decodeAudioData(
           decode(base64Audio),
           audioContextRef.current,
@@ -189,7 +196,7 @@ const InteractiveAvatar: React.FC = () => {
         const source = audioContextRef.current.createBufferSource();
         source.buffer = audioBuffer;
         source.connect(audioContextRef.current.destination);
-        
+
         setIsSpeaking(true);
         source.start();
         source.onended = () => {
@@ -221,7 +228,7 @@ const InteractiveAvatar: React.FC = () => {
         setIsThinking(false);
         return;
       }
-      
+
       // Check if GoogleGenAI is available
       if (typeof GoogleGenAI === 'undefined') {
         console.warn('GoogleGenAI not available. Using fallback response.');
@@ -230,7 +237,7 @@ const InteractiveAvatar: React.FC = () => {
         setIsThinking(false);
         return;
       }
-      
+
       const ai = new GoogleGenAI({ apiKey });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -244,10 +251,10 @@ const InteractiveAvatar: React.FC = () => {
       });
 
       const aiText = response.text || "I apologize, Dr. Vance. I encountered a neural synchronization error.";
-      
+
       setIsThinking(false);
       setMessages(prev => [...prev, { role: 'ai', text: aiText }]);
-      
+
       await speakResponse(aiText);
 
     } catch (error) {
@@ -276,133 +283,128 @@ const InteractiveAvatar: React.FC = () => {
     return (
       <div className="fixed bottom-10 right-10 z-[100]">
         <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20, filter: 'blur(10px)' }}
-            animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="absolute bottom-24 right-0 w-[420px] h-[600px] glass-panel rounded-[3rem] shadow-2xl overflow-hidden flex flex-col border border-white/20"
-          >
-            <div className="h-40 bg-[#0A2463] relative overflow-hidden flex items-center px-8 gap-6">
-              <div className="w-24 h-24 relative">
-                <Assistant3D isThinking={isThinking} isSpeaking={isSpeaking} />
-              </div>
-              <div className="text-white z-10">
-                <h4 className="font-black text-lg tracking-tight">NeuroAssistant</h4>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-                    isListening ? 'bg-red-400 animate-ping' :
-                    isThinking ? 'bg-amber-400 animate-pulse' : 
-                    isSpeaking ? 'bg-teal-400' : 'bg-[#2A9D8F]'
-                  }`}></span>
-                  <span className="text-[10px] text-white/60 font-black uppercase tracking-[0.2em]">
-                    {isListening ? 'Awaiting Audio Input' :
-                     isThinking ? 'Processing Neural Data' : 
-                     isSpeaking ? 'Communicating Insights' : 'Ready for Query'}
-                  </span>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="absolute bottom-24 right-0 w-[420px] h-[600px] glass-panel rounded-[3rem] shadow-2xl overflow-hidden flex flex-col border border-white/20"
+            >
+              <div className="h-40 bg-[#0A2463] relative overflow-hidden flex items-center px-8 gap-6">
+                <div className="w-24 h-24 relative">
+                  <Assistant3D isThinking={isThinking} isSpeaking={isSpeaking} />
                 </div>
-              </div>
-              <button 
-                onClick={() => setIsOpen(false)} 
-                className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gray-50/30 scroll-smooth">
-              {messages.map((msg, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}
-                >
-                  <div className={`max-w-[85%] p-5 rounded-[2rem] text-sm leading-relaxed shadow-sm ${
-                    msg.role === 'ai' 
-                    ? 'bg-white text-gray-800 rounded-tl-none border border-gray-100 font-medium' 
-                    : 'bg-[#0A2463] text-white rounded-tr-none font-bold'
-                  }`}>
-                    {msg.text}
+                <div className="text-white z-10">
+                  <h4 className="font-black text-lg tracking-tight">NeuroAssistant</h4>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className={`w-2 h-2 rounded-full transition-colors duration-300 ${isListening ? 'bg-red-400 animate-ping' :
+                      isThinking ? 'bg-amber-400 animate-pulse' :
+                        isSpeaking ? 'bg-teal-400' : 'bg-[#2A9D8F]'
+                      }`}></span>
+                    <span className="text-[10px] text-white/60 font-black uppercase tracking-[0.2em]">
+                      {isListening ? 'Awaiting Audio Input' :
+                        isThinking ? 'Processing Neural Data' :
+                          isSpeaking ? 'Communicating Insights' : 'Ready for Query'}
+                    </span>
                   </div>
-                </motion.div>
-              ))}
-              {isThinking && (
-                <div className="flex justify-start">
-                   <div className="bg-white/50 p-4 rounded-full flex gap-1 items-center">
+                </div>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-gray-50/30 scroll-smooth">
+                {messages.map((msg, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`flex ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div className={`max-w-[85%] p-5 rounded-[2rem] text-sm leading-relaxed shadow-sm ${msg.role === 'ai'
+                      ? 'bg-white text-gray-800 rounded-tl-none border border-gray-100 font-medium'
+                      : 'bg-[#0A2463] text-white rounded-tr-none font-bold'
+                      }`}>
+                      {msg.text}
+                    </div>
+                  </motion.div>
+                ))}
+                {isThinking && (
+                  <div className="flex justify-start">
+                    <div className="bg-white/50 p-4 rounded-full flex gap-1 items-center">
                       <div className="w-1.5 h-1.5 bg-[#2A9D8F] rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
                       <div className="w-1.5 h-1.5 bg-[#2A9D8F] rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                       <div className="w-1.5 h-1.5 bg-[#2A9D8F] rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                   </div>
-                </div>
-              )}
-              <div ref={chatEndRef} />
-            </div>
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
 
-            <div className="p-8 bg-white border-t border-gray-100">
-              <div className="relative flex items-center gap-2">
-                <div className="relative flex-1">
-                  <input 
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                    disabled={isThinking || isListening}
-                    placeholder={isListening ? "Listening..." : "Query NeuroAssistant..."}
-                    className={`w-full bg-gray-50 border-none rounded-2xl pl-6 pr-14 py-4 text-sm font-medium focus:ring-2 focus:ring-[#2A9D8F]/20 transition-all placeholder:text-gray-300 ${isListening ? 'italic text-[#2A9D8F]' : ''}`}
-                  />
-                  <button 
-                    onClick={() => handleSendMessage()}
-                    disabled={isThinking || isListening || !input.trim()}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-[#0A2463] text-white rounded-xl hover:bg-[#0A2463]/90 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/10"
+              <div className="p-8 bg-white border-t border-gray-100">
+                <div className="relative flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                      disabled={isThinking || isListening}
+                      placeholder={isListening ? "Listening..." : "Query NeuroAssistant..."}
+                      className={`w-full bg-gray-50 border-none rounded-2xl pl-6 pr-14 py-4 text-sm font-medium focus:ring-2 focus:ring-[#2A9D8F]/20 transition-all placeholder:text-gray-300 ${isListening ? 'italic text-[#2A9D8F]' : ''}`}
+                    />
+                    <button
+                      onClick={() => handleSendMessage()}
+                      disabled={isThinking || isListening || !input.trim()}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-2.5 bg-[#0A2463] text-white rounded-xl hover:bg-[#0A2463]/90 transition-all disabled:opacity-30 shadow-lg shadow-blue-900/10"
+                    >
+                      {isThinking ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={toggleListening}
+                    disabled={true}
+                    title="Voice commands are handled by the main voice assistant (bottom-right corner)"
+                    className={`p-4 rounded-2xl transition-all shadow-lg opacity-50 cursor-not-allowed bg-[#2A9D8F]/10 text-[#2A9D8F]`}
                   >
-                    {isThinking ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                    <Mic size={20} />
                   </button>
                 </div>
-                
-                <button 
-                  onClick={toggleListening}
-                  className={`p-4 rounded-2xl transition-all shadow-lg ${
-                    isListening 
-                    ? 'bg-red-500 text-white shadow-red-500/30' 
-                    : 'bg-[#2A9D8F]/10 text-[#2A9D8F] hover:bg-[#2A9D8F]/20'
-                  }`}
-                  title="Voice Input"
-                >
-                  {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-                </button>
+                <p className="mt-4 text-center text-[9px] text-gray-300 font-black uppercase tracking-[0.2em]">Neural Audio Interface v2.0 Active</p>
               </div>
-              <p className="mt-4 text-center text-[9px] text-gray-300 font-black uppercase tracking-[0.2em]">Neural Audio Interface v2.0 Active</p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <motion.button
-        onClick={() => setIsOpen(!isOpen)}
-        whileHover={{ scale: 1.05, rotate: 5 }}
-        whileTap={{ scale: 0.95 }}
-        className="group relative w-24 h-24 bg-gradient-to-br from-[#0A2463] to-[#7209B7] rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-900/40 overflow-hidden"
-      >
-        <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-        <motion.div
-          animate={{ rotate: 360, scale: [1, 1.1, 1] }}
-          transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
-          className="absolute inset-0 border-2 border-white/20 rounded-full scale-75 opacity-50"
-        />
-        <BrainCircuit className="text-white w-10 h-10 relative z-10 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
-        <div className="absolute inset-0 bg-gradient-to-tr from-[#2A9D8F]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-        <AnimatePresence>
-          {!isOpen && (
-            <motion.span 
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              className="absolute top-6 right-6 w-4 h-4 bg-[#2A9D8F] border-4 border-[#0A2463] rounded-full z-20 shadow-sm"
-            />
+            </motion.div>
           )}
         </AnimatePresence>
-      </motion.button>
-    </div>
-  );
+
+        <motion.button
+          onClick={() => setIsOpen(!isOpen)}
+          whileHover={{ scale: 1.05, rotate: 5 }}
+          whileTap={{ scale: 0.95 }}
+          className="group relative w-24 h-24 bg-gradient-to-br from-[#0A2463] to-[#7209B7] rounded-[2.5rem] flex items-center justify-center shadow-2xl shadow-blue-900/40 overflow-hidden"
+        >
+          <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          <motion.div
+            animate={{ rotate: 360, scale: [1, 1.1, 1] }}
+            transition={{ duration: 10, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-0 border-2 border-white/20 rounded-full scale-75 opacity-50"
+          />
+          <BrainCircuit className="text-white w-10 h-10 relative z-10 group-hover:scale-110 transition-transform" strokeWidth={1.5} />
+          <div className="absolute inset-0 bg-gradient-to-tr from-[#2A9D8F]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <AnimatePresence>
+            {!isOpen && (
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="absolute top-6 right-6 w-4 h-4 bg-[#2A9D8F] border-4 border-[#0A2463] rounded-full z-20 shadow-sm"
+              />
+            )}
+          </AnimatePresence>
+        </motion.button>
+      </div>
+    );
   } catch (error) {
     console.error('InteractiveAvatar render error:', error);
     return (

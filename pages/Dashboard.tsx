@@ -8,37 +8,44 @@ const motion = {
   section: (props: any) => <section {...props} />,
   button: (props: any) => <button {...props} />
 };
-import { 
-  Activity, 
-  TrendingUp, 
-  AlertTriangle, 
-  Clock, 
-  ExternalLink,
-  ChevronRight,
+import {
+  Activity,
+  Upload,
+  Users,
+  FileText,
+  Brain,
+  Search,
+  Clock,
+  ArrowUpRight,
   ShieldCheck,
-  Zap,
-  BrainCircuit,
-  Microscope,
+  AlertTriangle,
+  Globe,
+  Mic,
   Radar,
   Lock,
-  Globe,
-  Mic
+  BrainCircuit,
+  Zap,
+  Microscope,
+  ChevronRight,
+  ExternalLink
 } from 'lucide-react';
+import GlassPanel from '../components/ui/GlassPanel';
+import GlassButton from '../components/ui/GlassButton';
 import { ScanResult } from '../types';
 import Brain3D from '../components/Brain3D';
 import Doctor3D from '../components/Doctor3D';
 import LowPolyMedicalScene from '../components/LowPolyMedicalScene';
 import FloatingBrain3D from '../components/FloatingBrain3D';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area
 } from 'recharts';
 
 const data = [
@@ -69,8 +76,8 @@ const getTumorStyles = (type: string) => {
   }
 };
 
-const StatCard: React.FC<{icon: React.ReactNode, title: string, value: string, trend: string, trendUp: boolean}> = ({ icon, title, value, trend, trendUp }) => (
-  <motion.div 
+const StatCard: React.FC<{ icon: React.ReactNode, title: string, value: string, trend: string, trendUp: boolean }> = ({ icon, title, value, trend, trendUp }) => (
+  <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     className="bg-white/80 backdrop-blur-md p-10 rounded-[3rem] border border-gray-100 shadow-xl shadow-gray-200/40 hover:shadow-2xl hover:border-[#2A9D8F]/20 transition-all cursor-default"
@@ -105,15 +112,15 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
   return (
     <div className="relative min-h-screen">
       <LowPolyMedicalScene />
-      
-      <motion.div 
+
+      <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="show"
         className="relative z-10 max-w-[1600px] mx-auto space-y-12"
       >
         <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <motion.div 
+          <motion.div
             variants={itemVariants}
             className="lg:col-span-8 bg-[#0A2463] rounded-[3rem] p-12 text-white relative overflow-hidden flex flex-col justify-between min-h-[500px] shadow-2xl shadow-blue-900/40"
           >
@@ -123,7 +130,7 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
 
             <div className="absolute -right-10 bottom-0 w-[450px] h-[550px] z-20 hidden xl:block">
               <Doctor3D />
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.5, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ delay: 1, duration: 0.5 }}
@@ -133,7 +140,7 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
                 "Hello, Dr. Vance. Neural systems are online."
               </motion.div>
             </div>
-            
+
             <div className="relative z-30 max-w-xl">
               <div className="flex items-center gap-4 mb-8">
                 <div className="px-4 py-1.5 bg-[#2A9D8F]/20 text-[#2A9D8F] text-[10px] font-black uppercase tracking-[0.2em] rounded-full border border-[#2A9D8F]/30 flex items-center gap-2">
@@ -143,18 +150,18 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
                   <Lock size={12} /> HIPAA COMPLIANT
                 </div>
               </div>
-              
+
               <h1 className="text-6xl font-black leading-[1.1] mb-6 tracking-tight">
-                Elite Neural <br/>
+                Elite Neural <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#4CC9F0] to-[#2A9D8F]">Interpretation</span>
               </h1>
-              
+
               <p className="text-white/60 text-lg mb-10 leading-relaxed font-medium">
                 Autonomous screening of multimodality DICOM imagery utilizing Vision Transformer (ViT) architecture v4.2 with sub-millimeter precision.
               </p>
-              
+
               <div className="flex flex-wrap gap-5">
-                <motion.button 
+                <motion.button
                   whileHover={{ scale: 1.05 }}
                   className="px-10 py-4 bg-[#2A9D8F] text-white rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-[#2A9D8F]/90 shadow-2xl shadow-[#2A9D8F]/30 flex items-center gap-3"
                 >
@@ -184,34 +191,34 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
 
           <motion.div variants={itemVariants} className="lg:col-span-4 grid grid-rows-2 gap-8">
             <div className="bg-white rounded-[3rem] p-10 border border-gray-100 shadow-xl shadow-gray-200/40 flex flex-col justify-between group hover:border-[#2A9D8F]/30 transition-all">
-               <div className="flex justify-between items-start">
-                 <div className="w-16 h-16 bg-teal-50 rounded-[1.5rem] text-[#2A9D8F] flex items-center justify-center transition-transform group-hover:scale-110">
-                   <Zap size={32} fill="currentColor" />
-                 </div>
-                 <div className="text-right">
-                   <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">Queue Dynamics</span>
-                   <p className="text-[#2A9D8F] font-black text-sm">98.2% LOAD</p>
-                 </div>
-               </div>
-               <div>
-                 <p className="text-gray-400 text-xs font-black uppercase tracking-widest mb-1">Engine Load</p>
-                 <h3 className="text-4xl font-black text-[#0A2463]">Peak Flow</h3>
-                 <div className="mt-6 flex items-end gap-1.5 h-12">
-                   {[1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
-                     <motion.div 
+              <div className="flex justify-between items-start">
+                <div className="w-16 h-16 bg-teal-50 rounded-[1.5rem] text-[#2A9D8F] flex items-center justify-center transition-transform group-hover:scale-110">
+                  <Zap size={32} fill="currentColor" />
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-black text-gray-300 uppercase tracking-[0.2em]">Queue Dynamics</span>
+                  <p className="text-[#2A9D8F] font-black text-sm">98.2% LOAD</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs font-black uppercase tracking-widest mb-1">Engine Load</p>
+                <h3 className="text-4xl font-black text-[#0A2463]">Peak Flow</h3>
+                <div className="mt-6 flex items-end gap-1.5 h-12">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(i => (
+                    <motion.div
                       key={i}
                       animate={{ height: [10, Math.random() * 40 + 10, 10] }}
                       transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.1 }}
                       className="flex-1 bg-gradient-to-t from-[#2A9D8F] to-[#4CC9F0] rounded-full"
-                     />
-                   ))}
-                 </div>
-               </div>
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
-            
+
             <div className="bg-gradient-to-br from-[#7209B7] to-[#4361EE] rounded-[3rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-purple-900/30 group">
               <div className="absolute -right-8 -bottom-8 opacity-10 group-hover:scale-110 transition-transform duration-700">
-                 <Microscope size={200} />
+                <Microscope size={200} />
               </div>
               <p className="text-white/50 text-[10px] font-black uppercase tracking-widest mb-1">Urgent Diagnostics</p>
               <h3 className="text-5xl font-black leading-none">08 <span className="text-lg font-bold text-white/40 tracking-normal">CRITICAL</span></h3>
@@ -224,33 +231,33 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
         </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-          <StatCard 
-            icon={<Activity className="text-blue-600" size={24} />} 
-            title="Throughput" 
-            value="1.2k" 
-            trend="+12%" 
-            trendUp={true} 
+          <StatCard
+            icon={<Activity className="text-blue-600" size={24} />}
+            title="Throughput"
+            value="1.2k"
+            trend="+12%"
+            trendUp={true}
           />
-          <StatCard 
-            icon={<ShieldCheck className="text-[#2A9D8F]" size={24} />} 
-            title="Precision" 
-            value="96.4%" 
-            trend="+0.8%" 
-            trendUp={true} 
+          <StatCard
+            icon={<ShieldCheck className="text-[#2A9D8F]" size={24} />}
+            title="Precision"
+            value="96.4%"
+            trend="+0.8%"
+            trendUp={true}
           />
-          <StatCard 
-            icon={<AlertTriangle className="text-orange-500" size={24} />} 
-            title="Review Vol" 
-            value="24" 
-            trend="-12%" 
-            trendUp={true} 
+          <StatCard
+            icon={<AlertTriangle className="text-orange-500" size={24} />}
+            title="Review Vol"
+            value="24"
+            trend="-12%"
+            trendUp={true}
           />
-          <StatCard 
-            icon={<Clock className="text-purple-600" size={24} />} 
-            title="Inference" 
-            value="2.4s" 
-            trend="-2ms" 
-            trendUp={true} 
+          <StatCard
+            icon={<Clock className="text-purple-600" size={24} />}
+            title="Inference"
+            value="2.4s"
+            trend="-2ms"
+            trendUp={true}
           />
         </div>
 
@@ -271,14 +278,14 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
                 <AreaChart data={data}>
                   <defs>
                     <linearGradient id="colorCount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2A9D8F" stopOpacity={0.2}/>
-                      <stop offset="95%" stopColor="#2A9D8F" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#2A9D8F" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="#2A9D8F" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 700}} />
-                  <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12, fontWeight: 700}} />
-                  <Tooltip 
+                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }} />
+                  <Tooltip
                     contentStyle={{ borderRadius: '24px', border: 'none', boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.1)', padding: '20px' }}
                   />
                   <Area type="monotone" dataKey="count" stroke="#2A9D8F" strokeWidth={5} fillOpacity={1} fill="url(#colorCount)" />
@@ -296,8 +303,8 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
                   <AreaChart data={performanceData}>
                     <defs>
                       <linearGradient id="colorAcc" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#7209B7" stopOpacity={0.2}/>
-                        <stop offset="95%" stopColor="#7209B7" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#7209B7" stopOpacity={0.2} />
+                        <stop offset="95%" stopColor="#7209B7" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <Area type="step" dataKey="acc" stroke="#7209B7" fillOpacity={1} fill="url(#colorAcc)" strokeWidth={4} />
@@ -305,7 +312,7 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
                 </ResponsiveContainer>
               </div>
             </div>
-            
+
             <div className="mt-8 p-8 bg-[#0A2463] rounded-[2rem] text-white overflow-hidden relative">
               <div className="absolute top-[-20%] right-[-10%] w-24 h-24 bg-[#4CC9F0]/20 blur-3xl rounded-full" />
               <p className="text-[#4CC9F0] text-[10px] font-black uppercase tracking-[0.2em] mb-2">Neural Insight</p>
@@ -360,7 +367,7 @@ const Dashboard: React.FC<{ scans: ScanResult[]; onScanClick: (id: string) => vo
                     <td className="px-10 py-8">
                       <div className="flex items-center gap-6">
                         <div className="flex-1 h-2 w-32 bg-gray-100 rounded-full overflow-hidden">
-                          <motion.div 
+                          <motion.div
                             initial={{ width: 0 }}
                             animate={{ width: `${scan.confidence * 100}%` }}
                             transition={{ duration: 1.5, ease: 'easeOut' }}

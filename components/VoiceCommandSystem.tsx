@@ -1,659 +1,313 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Mic, Volume2, Power, Zap, Activity, Brain, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AppRoute } from '../types';
+import { api } from '../services/api';
 
-// Mock implementations for framer-motion components with enhanced functionality
-const motion = {
-  div: ({ 
-    children, 
-    initial, 
-    animate, 
-    exit, 
-    whileHover, 
-    whileTap, 
-    style, 
-    className, 
-    ...props 
-  }: any) => {
-    // Extract animation props and apply them as appropriate
-    return <div style={style} className={className} {...props}>{children}</div>;
-  },
-  button: ({ 
-    children, 
-    initial, 
-    animate, 
-    exit, 
-    whileHover, 
-    whileTap, 
-    style, 
-    className, 
-    ...props 
-  }: any) => {
-    // Extract animation props and apply them as appropriate
-    return <button style={style} className={className} {...props}>{children}</button>;
-  }
-};
-
-const AnimatePresence = ({ children }: { children?: React.ReactNode }) => {
-  return <>{children}</>;
-};
-
-// Enhanced error handling and logging
-const logError = (message: string, error: any) => {
-  console.error(`[VoiceCommandSystem Error] ${message}:`, error);
-};
-
-// Type definitions
 interface VoiceCommandSystemProps {
   onNavigate: (route: AppRoute) => void;
   onAction?: (action: string, params?: any) => void;
 }
-import { Mic, MicOff, Volume2, Zap, Brain } from 'lucide-react';
-import { AppRoute } from '../types';
-import { soundSystem } from './SoundEffects';
 
 const VoiceCommandSystem: React.FC<VoiceCommandSystemProps> = ({ onNavigate, onAction }) => {
   const [isListening, setIsListening] = useState(false);
   const [isActive, setIsActive] = useState(true);
-  const [lastCommand, setLastCommand] = useState('');
   const [transcript, setTranscript] = useState('');
   const [feedback, setFeedback] = useState('');
-  const [showFeedback, setShowFeedback] = useState(false);
-  
-  // AI-specific state
-  const [aiStatus, setAiStatus] = useState('');
-  const [predictionResult, setPredictionResult] = useState<any>(null);
-  
-  // Error tracking
-  const [errorCount, setErrorCount] = useState(0);
-  const [lastError, setLastError] = useState('');
-  
-  const recognitionRef = useRef<any>(null);
-  const feedbackTimeoutRef = useRef<any>(null);
+  const [isSupported, setIsSupported] = useState(true);
+  const [isAwake, setIsAwake] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
+  const [aiResponse, setAiResponse] = useState('');
 
-  // Initialize continuous speech recognition
+  const recognitionRef = useRef<any>(null);
+  const restartTimeoutRef = useRef<any>(null);
+  const isAwakeRef = useRef<boolean>(false);
+
+  // Auto-start continuous listening
   useEffect(() => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
+
     if (!SpeechRecognition) {
-      console.error('❌ Speech recognition not supported in this browser');
-      alert('Voice control requires Chrome, Edge, or Safari browser');
-      setIsActive(false);
+      setIsSupported(false);
+      setFeedback('❌ Voice not supported. Use Chrome or Edge.');
       return;
     }
 
-    console.log('✅ Speech Recognition API available');
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;  // Changed to false - no auto-restart
-    recognition.interimResults = true;
-    recognition.lang = 'en-US';
-    
-    recognition.onstart = () => {
-      console.log('🎤 Voice recognition STARTED');
-      setIsListening(true);
-      showFeedbackMessage('🎤 Listening...');
-    };
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
-    recognition.onresult = (event: any) => {
-      console.log('📝 Speech detected:', event);
-      let interimTranscript = '';
-      let finalTranscript = '';
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
 
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
+      recognition.onresult = (event: any) => {
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            finalTranscript += event.results[i][0].transcript;
+          }
         }
-      }
 
-      if (interimTranscript) {
-        console.log('💬 Interim:', interimTranscript);
-        setTranscript(interimTranscript);
-      }
+        if (finalTranscript) {
+          const text = finalTranscript.toLowerCase().trim();
+          console.log('🎤 Heard:', text);
+          setTranscript(text);
+          handleVoiceInput(text);
+        }
+      };
 
-      if (finalTranscript) {
-        console.log('✅ Final transcript:', finalTranscript);
-        setTranscript('');
-        processVoiceCommand(finalTranscript.toLowerCase().trim());
-      }
-    };
+      recognition.onerror = (event: any) => {
+        console.error('Speech error:', event.error);
+        if (event.error === 'not-allowed') {
+          setIsActive(false);
+        } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+          scheduleRestart();
+        }
+      };
 
-    recognition.onerror = (event: any) => {
-      console.error('❌ Speech recognition error:', event.error);
-      
-      if (event.error === 'not-allowed') {
-        alert('⚠️ Microphone permission denied! Please allow microphone access in browser settings.');
-        setIsActive(false);
-        showFeedbackMessage('❌ Mic Permission Denied');
-        return;
-      }
-      
-      if (event.error === 'no-speech') {
-        console.log('⏸ No speech detected');
-        showFeedbackMessage('⏸ No speech detected - Click mic to try again');
-        return;
-      }
-      
-      if (event.error === 'aborted') {
-        console.log('⚠️ Recognition aborted');
-        return;
-      }
-    };
+      recognition.onend = () => {
+        setIsListening(false);
+        if (isActive) scheduleRestart();
+      };
 
-    recognition.onend = () => {
-      console.log('⏹ Voice recognition ended - Click mic button to speak again');
-      setIsListening(false);
-      showFeedbackMessage('✓ Click mic button to speak again');
-      // NO AUTO-RESTART - user must click button
-    };
+      recognitionRef.current = recognition;
+      recognition.start();
 
-    recognitionRef.current = recognition;
+    } catch (error) {
+      setIsSupported(false);
+    }
 
     return () => {
-      console.log('🛑 Cleanup: Stopping voice recognition');
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (e) {
+          // Ignore errors on cleanup in case it's already stopped
+        }
       }
     };
   }, []);
 
-  const speak = (text: string) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    window.speechSynthesis.speak(utterance);
+  const scheduleRestart = () => {
+    if (restartTimeoutRef.current) clearTimeout(restartTimeoutRef.current);
+    restartTimeoutRef.current = setTimeout(() => {
+      if (isActive && recognitionRef.current) {
+        try {
+          recognitionRef.current.start();
+        } catch (e) {
+          // Ignore start errors
+        }
+      }
+    }, 500);
   };
 
-  const showFeedbackMessage = (message: string) => {
-    setFeedback(message);
-    setShowFeedback(true);
-    
-    if (feedbackTimeoutRef.current) {
-      clearTimeout(feedbackTimeoutRef.current);
-    }
-    
-    feedbackTimeoutRef.current = setTimeout(() => {
-      setShowFeedback(false);
-    }, 3000);
-  };
-  
-  // Handle AI-specific commands
-  const handleAICommand = async (command: string) => {
-    setAiStatus('Processing AI command...');
-    showFeedbackMessage('🧠 Processing AI command...');
-    
-    try {
-      if (command.includes('analyze') || command.includes('detect') || command.includes('predict')) {
-        // Simulate AI analysis
-        speak('Initiating brain scan analysis with AI model');
-        
-        // This would connect to your actual AI model
-        onAction?.('start_analysis');
-        
-        // Simulate AI processing time
-        setTimeout(() => {
-          setAiStatus('Analysis complete');
-          showFeedbackMessage('✓ AI Analysis Complete');
-          soundSystem.playSuccess();
-        }, 2000);
-        
-        return;
-      }
-      
-      if (command.includes('tumor') || command.includes('detection')) {
-        speak('Running tumor detection algorithm');
-        onAction?.('start_tumor_detection');
-        
-        setTimeout(() => {
-          setAiStatus('Tumor detection complete');
-          showFeedbackMessage('✓ Tumor Detection Complete');
-          
-          // Simulated prediction result
-          setPredictionResult({
-            hasTumor: Math.random() > 0.5,
-            confidence: Math.floor(Math.random() * 40) + 60, // 60-99%
-            type: ['Glioma', 'Meningioma', 'Pituitary'][Math.floor(Math.random() * 3)],
-            timestamp: new Date().toISOString()
-          });
-          
-          soundSystem.playSuccess();
-        }, 2500);
-        
-        return;
-      }
-      
-      if (command.includes('error') || command.includes('debug')) {
-        // Show error statistics
-        speak(`Current error count is ${errorCount}. Last error was ${lastError}`);
-        showFeedbackMessage(`Errors: ${errorCount}. Last: ${lastError.substring(0, 30)}...`);
-        return;
-      }
-      
-      // Default AI response
-      speak('AI system ready for brain tumor analysis');
-      showFeedbackMessage('🧠 AI Ready');
-      
-    } catch (error) {
-      console.error('Error in AI command:', error);
-      logError('Error in AI command processing', error);
-      setErrorCount(prev => prev + 1);
-      setLastError(error instanceof Error ? error.message : String(error));
-      setAiStatus('AI Error');
-      showFeedbackMessage('⚠️ AI Processing Error');
-      soundSystem.playError();
-    }
-  };
-
-  const processVoiceCommand = (command: string) => {
-    console.log('Processing command:', command);
-    setLastCommand(command);
-    soundSystem.playNotification();
-    
-    // Enhanced error tracking
-    try {
-      // Check for AI-related commands
-      if (command.includes('ai') || command.includes('predict') || command.includes('analyze')) {
-        handleAICommand(command);
-        return;
-      }
-      
-      // Process navigation commands
-      if (command.includes('go to') || command.includes('open') || command.includes('show')) {
-        if (command.includes('dashboard') || command.includes('home') || command.includes('main')) {
-          onNavigate(AppRoute.DASHBOARD);
-          speak('Opening Dashboard');
-          showFeedbackMessage('✓ Navigating to Dashboard');
-          soundSystem.playSuccess();
-          return;
-        }
-        
-        if (command.includes('patient') || command.includes('registry')) {
-          onNavigate(AppRoute.PATIENTS);
-          speak('Opening Patient Registry');
-          showFeedbackMessage('✓ Navigating to Patients');
-          soundSystem.playSuccess();
-          return;
-        }
-        
-        if (command.includes('scan') || command.includes('upload') || command.includes('diagnostic')) {
-          onNavigate(AppRoute.SCAN);
-          speak('Opening Diagnostic Engine');
-          showFeedbackMessage('✓ Navigating to Scan & Analyze');
-          soundSystem.playSuccess();
-          return;
-        }
-        
-        if (command.includes('result') || command.includes('review')) {
-          onNavigate(AppRoute.RESULTS);
-          speak('Opening Review Center');
-          showFeedbackMessage('✓ Navigating to Results');
-          soundSystem.playSuccess();
-          return;
-        }
-        
-        if (command.includes('knowledge') || command.includes('learn') || command.includes('info')) {
-          onNavigate(AppRoute.KNOWLEDGE_BASE);
-          speak('Opening Knowledge Base');
-          showFeedbackMessage('✓ Navigating to Knowledge Base');
-          soundSystem.playSuccess();
-          return;
-        }
-      }
-      
-      // Process action commands
-      if (command.includes('download') || command.includes('save') || command.includes('export')) {
-        if (command.includes('report') || command.includes('pdf')) {
-          speak('Generating PDF report');
-          showFeedbackMessage('✓ Generating PDF Report...');
-          soundSystem.playProcessing();
-          onAction?.('download_report');
-          return;
-        }
-      }
-      
-      if (command.includes('upload') || command.includes('select file') || command.includes('choose file')) {
-        speak('Opening file selector');
-        showFeedbackMessage('✓ Opening file selector');
-        onAction?.('open_file_selector');
-        soundSystem.playClick();
-        return;
-      }
-      
-      if (command.includes('analyze') || command.includes('process') || command.includes('scan')) {
-        speak('Starting AI Analysis');
-        showFeedbackMessage('✓ Starting AI Analysis...');
-        soundSystem.playProcessing();
-        onAction?.('start_analysis');
-        return;
-      }
-      
-      // Help command
-      if (command.includes('help') || command.includes('what can you do') || command.includes('commands')) {
-        const helpText = 'You can say: Go to Dashboard, Open Patients, Show Scan page, Go to Results, Order Medicine, Download Report, Upload Scan, or Analyze Image';
-        speak(helpText);
-        showFeedbackMessage('💡 Listening for commands...');
-        return;
-      }
-      
-      // Wake word detection
-      if (command.includes('hey neuro') || command.includes('hi neuro') || command.includes('hello neuro')) {
-        speak('Yes, I\'m listening. How can I help?');
-        showFeedbackMessage('👋 Hello! I\'m ready');
-        soundSystem.playNotification();
-        return;
-      }
-      
-      // If no command matched
-      if (command.length > 3) {
-        speak('I didn\'t understand that command. Say help for available commands.');
-        showFeedbackMessage('❓ Command not recognized');
-        soundSystem.playError();
-      }
-    } catch (error) {
-      console.error('Error processing voice command:', error);
-      logError('Error processing voice command', error);
-      setErrorCount(prev => prev + 1);
-      setLastError(error instanceof Error ? error.message : String(error));
-      showFeedbackMessage('⚠️ Command processing error');
-      soundSystem.playError();
-    }
-
-    // Navigation commands
-    if (command.includes('go to') || command.includes('open') || command.includes('show')) {
-      if (command.includes('dashboard') || command.includes('home') || command.includes('main')) {
-        onNavigate(AppRoute.DASHBOARD);
-        speak('Opening Dashboard');
-        showFeedbackMessage('✓ Navigating to Dashboard');
-        soundSystem.playSuccess();
-        return;
-      }
-      
-      if (command.includes('patient') || command.includes('registry')) {
-        onNavigate(AppRoute.PATIENTS);
-        speak('Opening Patient Registry');
-        showFeedbackMessage('✓ Navigating to Patients');
-        soundSystem.playSuccess();
-        return;
-      }
-      
-      if (command.includes('scan') || command.includes('upload') || command.includes('diagnostic')) {
-        onNavigate(AppRoute.SCAN);
-        speak('Opening Diagnostic Engine');
-        showFeedbackMessage('✓ Navigating to Scan & Analyze');
-        soundSystem.playSuccess();
-        return;
-      }
-      
-      if (command.includes('result') || command.includes('review')) {
-        onNavigate(AppRoute.RESULTS);
-        speak('Opening Review Center');
-        showFeedbackMessage('✓ Navigating to Results');
-        soundSystem.playSuccess();
-        return;
-      }
-      
-      if (command.includes('knowledge') || command.includes('learn') || command.includes('info')) {
-        onNavigate(AppRoute.KNOWLEDGE_BASE);
-        speak('Opening Knowledge Base');
-        showFeedbackMessage('✓ Navigating to Knowledge Base');
-        soundSystem.playSuccess();
-        return;
-      }
-      
-      if (command.includes('medicine') || command.includes('order medicine') || command.includes('pharmacy') || command.includes('medication')) {
-        onNavigate(AppRoute.MEDICINE_ORDER);
-        speak('Opening Medicine Ordering System');
-        showFeedbackMessage('✓ Navigating to Medicine Order');
-        soundSystem.playSuccess();
-        return;
-      }
-    }
-
-    // Action commands
-    if (command.includes('download') || command.includes('save') || command.includes('export')) {
-      if (command.includes('report') || command.includes('pdf')) {
-        speak('Generating PDF report');
-        showFeedbackMessage('✓ Generating PDF Report...');
-        soundSystem.playProcessing();
-        onAction?.('download_report');
-        return;
-      }
-    }
-
-    if (command.includes('upload') || command.includes('select file') || command.includes('choose file')) {
-      speak('Opening file selector');
-      showFeedbackMessage('✓ Opening file selector');
-      onAction?.('open_file_selector');
-      soundSystem.playClick();
-      return;
-    }
-
-    if (command.includes('analyze') || command.includes('process') || command.includes('scan')) {
-      speak('Starting analysis');
-      showFeedbackMessage('✓ Starting AI Analysis...');
-      soundSystem.playProcessing();
-      onAction?.('start_analysis');
-      return;
-    }
-
-    // Help command
-    if (command.includes('help') || command.includes('what can you do') || command.includes('commands')) {
-      const helpText = 'You can say: Go to Dashboard, Open Patients, Show Scan page, Go to Results, Download Report, Upload Scan, or Analyze Image';
-      speak(helpText);
-      showFeedbackMessage('💡 Listening for commands...');
-      return;
-    }
-
+  const handleVoiceInput = async (text: string) => {
     // Wake word detection
-    if (command.includes('hey neuro') || command.includes('hi neuro') || command.includes('hello neuro')) {
-      speak('Yes, I\'m listening. How can I help?');
-      showFeedbackMessage('👋 Hello! I\'m ready');
-      soundSystem.playNotification();
+    if (!isAwakeRef.current) {
+      if (text.includes('rajdeep activate') || text.includes('hey rajdeep') || text.includes('system activate')) {
+        isAwakeRef.current = true;
+        setIsAwake(true);
+        speak('Identity verified. Clinical Assistant Online.');
+        setFeedback('ONLINE');
+        return;
+      }
       return;
     }
 
-    // If no command matched
-    if (command.length > 3) {
-      speak('I didn\'t understand that command. Say help for available commands.');
-      showFeedbackMessage('❓ Command not recognized');
-      soundSystem.playError();
-    }
+    // If awake, check for system commands first
+    if (processSystemCommand(text)) return;
+
+    // If not a system command, treat as AI Query
+    await processAIQuery(text);
   };
 
-  const toggleVoiceControl = () => {
-    if (!recognitionRef.current) {
-      console.error('❌ Recognition not initialized');
-      return;
+  const processSystemCommand = (text: string): boolean => {
+    // SYSTEM CONTROL
+    if (text.match(/(?:sleep|stop|deactivate|turn off)/i)) {
+      isAwakeRef.current = false;
+      setIsAwake(false);
+      speak('Entering standby mode.');
+      setAiResponse('');
+      return true;
     }
 
-    if (isListening) {
-      // Stop listening
-      console.log('🛑 Stopping voice recognition manually...');
-      recognitionRef.current.stop();
-      setIsListening(false);
-      showFeedbackMessage('⏹ Voice stopped');
-    } else {
-      // Start listening
-      try {
-        console.log('🎤 STARTING voice recognition (manual click)...');
-        recognitionRef.current.start();
-        showFeedbackMessage('🎤 Listening - Speak now!');
-        soundSystem.playNotification();
-      } catch (e) {
-        console.error('❌ Failed to start:', e);
-        showFeedbackMessage('❌ Failed to start - Try again');
+    // NAVIGATION
+    const navMap: { [key: string]: AppRoute } = {
+      'dashboard': AppRoute.DASHBOARD,
+      'scan': AppRoute.SCAN,
+      'results': AppRoute.RESULTS,
+      'medicine': AppRoute.MEDICINE_ORDER,
+      'map': AppRoute.PHARMACY_MAP,
+      '3d': AppRoute.TUMOR_3D,
+      'ambulance': AppRoute.AMBULANCE,
+      'growth': AppRoute.GROWTH_PREDICTION,
+      'neuro': AppRoute.NEURO_ANALYSIS,
+      'analytics': AppRoute.ANALYTICS,
+      'research': AppRoute.KNOWLEDGE_BASE // Assuming new route
+    };
+
+    for (const [key, route] of Object.entries(navMap)) {
+      if (text.includes(key) && (text.includes('go to') || text.includes('open') || text.includes('show'))) {
+        onNavigate(route);
+        speak(`Navigating to ${key}.`);
+        return true;
       }
     }
+
+    return false;
   };
+
+  const processAIQuery = async (text: string) => {
+    setIsThinking(true);
+    setFeedback('Processing Query...');
+    setAiResponse(''); // Clear previous response
+
+    try {
+      // Check for "alien" keywords locally (optional Easter egg from previous code)
+      if (text.includes('alien') || text.includes('magic')) {
+        const resp = "I cannot analyze non-biological anomalies.";
+        speak(resp);
+        setAiResponse(resp);
+        setIsThinking(false);
+        return;
+      }
+
+      const response = await api.chat(text);
+      const aiText = response.response;
+
+      setAiResponse(aiText);
+      speak(aiText);
+
+    } catch (e) {
+      const errMsg = "I am unable to reach the neural core.";
+      speak(errMsg);
+      setAiResponse(errMsg);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  const speak = (text: string) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const toggleActive = () => {
+    if (isAwake) {
+      isAwakeRef.current = false;
+      setIsAwake(false);
+      setAiResponse('');
+    } else {
+      isAwakeRef.current = true;
+      setIsAwake(true);
+      speak('System Activated.');
+    }
+  };
+
+  if (!isSupported) return null;
 
   return (
     <>
-      {/* Voice Control Toggle Button */}
-      <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        className="fixed top-6 right-6 z-[1000] flex flex-col items-end gap-2"
-      >
-        {/* Feedback Display */}
-        <AnimatePresence>
-          {showFeedback && (
-            <motion.div
-              initial={{ opacity: 0, y: -10, x: 10 }}
-              animate={{ opacity: 1, y: 0, x: 0 }}
-              exit={{ opacity: 0, y: -10, x: 10 }}
-              className="bg-gradient-to-r from-[#2A9D8F] to-[#4CC9F0] text-white px-6 py-3 rounded-2xl shadow-2xl font-bold text-sm flex items-center gap-2"
-            >
-              <Zap className="w-4 h-4" />
-              {feedback}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Transcript Display */}
-        <AnimatePresence>
-          {transcript && isListening && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              className="bg-white/95 backdrop-blur-xl border-2 border-[#4CC9F0] px-6 py-3 rounded-2xl shadow-xl max-w-md"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 0.5, repeat: Infinity }}
-                  className="w-2 h-2 bg-red-500 rounded-full"
-                />
-                <span className="text-xs font-black text-gray-500 uppercase tracking-wider">
-                  Listening...
-                </span>
-              </div>
-              <p className="text-[#0A2463] font-bold">{transcript}</p>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Main Control Button */}
+      {/* Floating Trigger Button (Always Visible) */}
+      <div className="fixed bottom-6 right-6 z-50">
         <motion.button
-          onClick={toggleVoiceControl}
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className={`relative w-16 h-16 rounded-2xl shadow-2xl flex items-center justify-center transition-all ${
-            isActive
-              ? 'bg-gradient-to-br from-[#2A9D8F] to-[#4CC9F0]'
-              : 'bg-gray-400'
-          }`}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          className={`w-16 h-16 rounded-full flex items-center justify-center shadow-2xl border-4 transition-colors ${isAwake ? 'bg-red-500 border-red-400 animate-pulse' : 'bg-gray-900 border-gray-700'}`}
+          onClick={toggleActive}
         >
-          {isActive && isListening && (
-            <motion.div
-              animate={{
-                scale: [1, 1.4, 1],
-                opacity: [0.5, 0.2, 0.5],
-              }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="absolute inset-0 bg-[#4CC9F0] rounded-2xl"
-            />
-          )}
-          
-          <div className="relative z-10">
-            {isActive ? (
-              <Mic className="text-white w-7 h-7" strokeWidth={2.5} />
-            ) : (
-              <MicOff className="text-white w-7 h-7" strokeWidth={2.5} />
-            )}
-          </div>
-
-          {/* Listening Indicator */}
-          {isActive && isListening && (
-            <motion.div
-              animate={{
-                scale: [1, 1.2, 1],
-              }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full border-2 border-white"
-            />
-          )}
+          {isAwake ? <Mic className="text-white" /> : <Power className="text-gray-400" />}
         </motion.button>
+      </div>
 
-        {/* Status Text */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-xs font-black text-white uppercase tracking-wider bg-[#0A2463]/80 backdrop-blur-md px-4 py-2 rounded-full"
-        >
-          {isActive ? (
-            isListening ? '🎤 Listening...' : '⏸ Paused'
-          ) : (
-            '🔇 Voice Off'
-          )}
-        </motion.div>
-
-        {/* Last Command */}
-        {lastCommand && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.7 }}
-            className="text-xs text-white/60 font-bold max-w-[200px] text-right bg-black/20 backdrop-blur-sm px-3 py-1 rounded-lg"
-          >
-            Last: "{lastCommand.substring(0, 30)}..."
-          </motion.div>
-        )}
-        
-        {/* AI Status */}
-        {aiStatus && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.8 }}
-            className="text-xs text-green-400 font-bold max-w-[200px] text-right bg-black/20 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-1"
-          >
-            <Brain className="w-3 h-3" />
-            AI: {aiStatus}
-          </motion.div>
-        )}
-        
-        {/* Error Tracking */}
-        {errorCount > 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.8 }}
-            className="text-xs text-red-400 font-bold max-w-[200px] text-right bg-black/20 backdrop-blur-sm px-3 py-1 rounded-lg flex items-center gap-1"
-          >
-            ⚠️ Errors: {errorCount}
-          </motion.div>
-        )}
-      </motion.div>
-
-      {/* Instructions Overlay (shows on first load) */}
+      {/* Global Holographic Overlay */}
       <AnimatePresence>
-        {isActive && !lastCommand && (
+        {isAwake && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ delay: 1 }}
-            className="fixed bottom-32 right-8 z-[999] max-w-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center bg-black/40 backdrop-blur-sm"
           >
-            <div className="bg-gradient-to-br from-[#0A2463] to-[#4361EE] text-white p-6 rounded-3xl shadow-2xl border-2 border-[#4CC9F0]/30">
-              <div className="flex items-center gap-2 mb-3">
-                <Volume2 className="w-5 h-5 text-[#4CC9F0]" />
-                <h3 className="font-black text-lg">Voice Commands Active!</h3>
+            <div className="relative w-full max-w-2xl p-8 pointer-events-auto">
+              {/* Hologram Box */}
+              <div className="bg-black/80 border border-[#4CC9F0]/50 rounded-3xl p-8 shadow-[0_0_50px_rgba(76,201,240,0.3)] relative overflow-hidden backdrop-blur-xl">
+                {/* Scanning Line Animation */}
+                <motion.div
+                  className="absolute top-0 left-0 w-full h-1 bg-[#4CC9F0]/50 shadow-[0_0_20px_#4CC9F0]"
+                  animate={{ top: ['0%', '100%', '0%'] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                />
+
+                <div className="flex items-start gap-6">
+                  {/* Visualizer */}
+                  <div className="w-24 h-24 rounded-full border-4 border-[#4CC9F0]/30 flex items-center justify-center relative bg-black/50">
+                    <Activity className="text-[#4CC9F0] animate-pulse" size={40} />
+                    <div className="absolute inset-0 border-t-2 border-[#4CC9F0] rounded-full animate-spin" style={{ animationDuration: '3s' }} />
+                  </div>
+
+                  <div className="flex-1 space-y-4">
+                    <div className="flex justify-between items-center border-b border-white/10 pb-2">
+                      <h2 className="text-2xl font-black text-white tracking-widest uppercase flex items-center gap-2">
+                        <Brain className="text-[#4CC9F0]" />
+                        RAJDEEP AI
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        <span className="text-xs font-mono text-[#4CC9F0]">ONLINE</span>
+                      </div>
+                    </div>
+
+                    {/* Transcript */}
+                    <div className="min-h-[60px]">
+                      <p className="text-gray-400 text-sm font-bold uppercase tracking-wider mb-1">User Input</p>
+                      <p className="text-xl text-white font-medium">
+                        {transcript || "Listening..."}
+                        <span className="animate-pulse">_</span>
+                      </p>
+                    </div>
+
+                    {/* AI Response */}
+                    <AnimatePresence>
+                      {(aiResponse || isThinking) && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="bg-white/5 rounded-xl p-4 border border-white/10"
+                        >
+                          <p className="text-[#4CC9F0] text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
+                            {isThinking ? <Zap size={14} className="animate-bounce" /> : <Volume2 size={14} />}
+                            {isThinking ? "Processing..." : "System Response"}
+                          </p>
+                          <p className="text-lg text-gray-200 leading-relaxed">
+                            {isThinking ? "Analyzing inputs..." : aiResponse}
+                          </p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </div>
+
+                {/* Close Button */}
+                <button
+                  onClick={() => {
+                    isAwakeRef.current = false;
+                    setIsAwake(false);
+                  }}
+                  className="absolute top-4 right-4 text-white/30 hover:text-white transition-colors"
+                >
+                  <X size={24} />
+                </button>
               </div>
-              <p className="text-sm mb-3 text-white/80 leading-relaxed">
-                Try saying:
-              </p>
-              <ul className="text-xs space-y-1 text-white/90 font-bold">
-                <li>• "Go to Dashboard"</li>
-                <li>• "Open Scan page"</li>
-                <li>• "Show Results"</li>
-                <li>• "Download Report"</li>
-                <li>• "Analyze Brain Scan"</li>
-                <li>• "Detect Tumor"</li>
-                <li>• "Order Medicine"</li>
-                <li>• "Show Errors"</li>
-                <li>• "Help" for more commands</li>
-              </ul>
             </div>
           </motion.div>
         )}

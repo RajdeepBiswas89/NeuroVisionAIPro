@@ -63,7 +63,7 @@ const ScanAnalyzePage: React.FC<ScanAnalyzePageProps> = ({ onAnalysisComplete })
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_URL}/predict`, {
+      const response = await fetch(`${API_URL}/api/predict`, {
         method: 'POST',
         body: formData,
       });
@@ -80,12 +80,12 @@ const ScanAnalyzePage: React.FC<ScanAnalyzePageProps> = ({ onAnalysisComplete })
         patientId: 'PAT-999',
         patientName: 'Anonymous Patient',
         scanDate: new Date().toLocaleString(),
-        classification: result.class as TumorClass,
+        classification: result.prediction as TumorClass,
         confidence: result.confidence,
-        status: result.class === 'No Tumor' ? 'Reviewed' : 'Critical',
+        status: result.prediction === 'No Tumor' ? 'Reviewed' : 'Critical',
         imageUri: URL.createObjectURL(file),
         heatmapUri: 'https://picsum.photos/seed/heatmap_gen/800/800',
-        probabilities: result.all_probabilities,
+        probabilities: result.probabilities,
         metadata: {
           modality: 'MR',
           manufacturer: 'Simulated',
@@ -174,10 +174,9 @@ Please ensure:
           <div className="absolute top-0 right-0 w-64 h-64 opacity-20 pointer-events-none z-0">
             <MedicalHologram />
           </div>
-          <div 
-            className={`relative h-[400px] border-2 border-dashed rounded-3xl transition-all flex flex-col items-center justify-center p-8 bg-white ${
-              dragActive ? 'border-[#2A9D8F] bg-[#2A9D8F]/5' : 'border-gray-200 hover:border-gray-300'
-            }`}
+          <div
+            className={`relative h-[400px] border-2 border-dashed rounded-3xl transition-all flex flex-col items-center justify-center p-8 bg-white ${dragActive ? 'border-[#2A9D8F] bg-[#2A9D8F]/5' : 'border-gray-200 hover:border-gray-300'
+              }`}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
@@ -190,12 +189,12 @@ Please ensure:
                 </div>
                 <h3 className="text-xl font-bold text-gray-900 mb-1">{file.name}</h3>
                 <p className="text-gray-500 text-sm mb-8">{(file.size / (1024 * 1024)).toFixed(2)} MB</p>
-                
+
                 {analyzing ? (
                   <div className="space-y-4">
                     <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-[#2A9D8F] transition-all duration-300" 
+                      <div
+                        className="h-full bg-[#2A9D8F] transition-all duration-300"
                         style={{ width: `${progress}%` }}
                       />
                     </div>
@@ -205,13 +204,13 @@ Please ensure:
                   </div>
                 ) : (
                   <div className="flex gap-3 justify-center">
-                    <button 
+                    <button
                       onClick={() => setFile(null)}
                       className="px-6 py-2.5 border border-gray-200 rounded-xl text-gray-600 font-semibold hover:bg-gray-50 transition-all"
                     >
                       Remove
                     </button>
-                    <button 
+                    <button
                       onClick={startAnalysis}
                       className="px-8 py-2.5 bg-[#0A2463] text-white rounded-xl font-semibold hover:bg-[#0A2463]/90 shadow-lg shadow-blue-900/10 flex items-center gap-2"
                     >
@@ -229,14 +228,15 @@ Please ensure:
                 <p className="text-gray-500 text-center max-w-xs mb-8">
                   Drag and drop a MRI scan or batch of slices to start the AI-assisted diagnostic process.
                 </p>
-                <input 
-                  type="file" 
-                  className="hidden" 
-                  ref={fileInputRef} 
+                <input
+                  id="scan-upload-input"
+                  type="file"
+                  className="hidden"
+                  ref={fileInputRef}
                   onChange={handleFileInput}
                   accept=".png,.jpg,.jpeg,.dicom,.dcm"
                 />
-                <button 
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="px-8 py-3 bg-[#2A9D8F] text-white rounded-xl font-bold hover:bg-[#2A9D8F]/90 shadow-lg shadow-teal-900/10 transition-all"
                 >
@@ -251,9 +251,9 @@ Please ensure:
             <div className="text-sm leading-relaxed text-gray-600">
               <h4 className="font-bold text-[#0A2463] mb-1">How AI Analysis Works</h4>
               <p>
-                The NeuroVision ViT model utilizes self-attention mechanisms to analyze medical images. 
-                Instead of processing pixels locally like traditional CNNs, it views the image as a sequence 
-                of patches, allowing it to capture global dependencies across different MRI slices, 
+                The NeuroVision ViT model utilizes self-attention mechanisms to analyze medical images.
+                Instead of processing pixels locally like traditional CNNs, it views the image as a sequence
+                of patches, allowing it to capture global dependencies across different MRI slices,
                 often leading to higher detection rates for subtle abnormalities.
               </p>
             </div>

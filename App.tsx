@@ -1,14 +1,31 @@
 
 import React, { useState, useEffect } from 'react';
-import { AppRoute, ScanResult, Patient } from './types';
+import { AppRoute, ScanResult } from './types';
 import AppShell from './components/layout/AppShell';
 import Dashboard from './pages/Dashboard';
 import PatientsPage from './pages/PatientsPage';
-import ScanAnalyzePage from './pages/ScanAnalyzePage';
+import AnalyticsPage from './pages/AnalyticsPage';
+import ResearchHubPage from './pages/ResearchHubPage';
+import DiagnosticEnginePage from './pages/DiagnosticEnginePage';
 import ResultsPage from './pages/ResultsPage';
 import KnowledgeBasePage from './pages/KnowledgeBasePage';
-import MedicineOrderPage from './pages/MedicineOrderPage';
+
+
+import MedicineArbitragePage from './pages/MedicineArbitragePage';
+import InteractiveMap from './components/InteractiveMap';
+import Tumor3DViewer from './components/Tumor3DViewer';
+import AmbulancePage from './pages/AmbulancePage';
+
+
+import GrowthPredictionPage from './pages/GrowthPredictionPage';
+import NeuroAnalysisPage from './pages/NeuroAnalysisPage';
+import CaregiverDashboard from './pages/CaregiverDashboard';
+import ClinicianDashboard from './pages/ClinicianDashboard';
 import FuturisticAIChat from './components/FuturisticAIChat';
+
+
+
+
 import ParticleField from './components/ParticleField';
 import VoiceCommandSystem from './components/VoiceCommandSystem';
 
@@ -16,22 +33,7 @@ const App: React.FC = () => {
   const [currentRoute, setCurrentRoute] = useState<AppRoute>(AppRoute.DASHBOARD);
   const [selectedScanId, setSelectedScanId] = useState<string | null>(null);
 
-  // Test voice recognition on mount
-  useEffect(() => {
-    console.log('🚀 APP LOADED - Testing voice recognition...');
-    
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    
-    if (SpeechRecognition) {
-      console.log('✅ Web Speech API is AVAILABLE!');
-      console.log('🎯 Click the MIC button (top-right) to activate voice control');
-    } else {
-      console.error('❌ Web Speech API NOT supported in this browser');
-      alert('⚠️ Voice control requires Chrome, Edge, or Safari browser');
-    }
-  }, []);
-
-  // Mock data initialization
+  // Initial Scan Data
   const [scans, setScans] = useState<ScanResult[]>([
     {
       id: 'SCN-8821',
@@ -43,40 +45,8 @@ const App: React.FC = () => {
       status: 'Critical',
       imageUri: 'https://picsum.photos/seed/mri1/800/800',
       heatmapUri: 'https://picsum.photos/seed/heatmap1/800/800',
-      probabilities: {
-        'Glioma': 0.94,
-        'Meningioma': 0.03,
-        'Pituitary': 0.02,
-        'No Tumor': 0.01
-      },
-      metadata: {
-        modality: 'MR',
-        manufacturer: 'GE Medical Systems',
-        sliceThickness: '1.0mm',
-        magneticFieldStrength: '3T'
-      }
-    },
-    {
-      id: 'SCN-8822',
-      patientId: 'PAT-002',
-      patientName: 'Sarah Smith',
-      scanDate: '2024-05-14 09:15',
-      classification: 'No Tumor',
-      confidence: 0.99,
-      status: 'Reviewed',
-      imageUri: 'https://picsum.photos/seed/mri2/800/800',
-      probabilities: {
-        'Glioma': 0.001,
-        'Meningioma': 0.002,
-        'Pituitary': 0.001,
-        'No Tumor': 0.996
-      },
-      metadata: {
-        modality: 'MR',
-        manufacturer: 'Siemens',
-        sliceThickness: '1.0mm',
-        magneticFieldStrength: '1.5T'
-      }
+      probabilities: { 'Glioma': 0.94, 'Meningioma': 0.03, 'Pituitary': 0.02, 'No Tumor': 0.01 },
+      metadata: { modality: 'MR', manufacturer: 'GE Medical', sliceThickness: '1mm', magneticFieldStrength: '3T' }
     }
   ]);
 
@@ -87,52 +57,60 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     switch (currentRoute) {
-      case AppRoute.DASHBOARD:
-        return <Dashboard scans={scans} onScanClick={navigateToResults} />;
-      case AppRoute.PATIENTS:
-        return <PatientsPage />;
+      case AppRoute.DASHBOARD: return <Dashboard scans={scans} onScanClick={navigateToResults} />;
+      case AppRoute.PATIENTS: return <PatientsPage />;
       case AppRoute.SCAN:
-        return <ScanAnalyzePage onAnalysisComplete={(newScan) => {
-          setScans(prev => [newScan, ...prev]);
-          navigateToResults(newScan.id);
-        }} />;
+        return <DiagnosticEnginePage />;
       case AppRoute.RESULTS:
         const scan = scans.find(s => s.id === selectedScanId) || scans[0];
         return <ResultsPage scan={scan} />;
-      case AppRoute.MEDICINE_ORDER:
-        return <MedicineOrderPage />;
-      case AppRoute.KNOWLEDGE_BASE:
-        return <KnowledgeBasePage />;
-      default:
-        return <Dashboard scans={scans} onScanClick={navigateToResults} />;
+
+
+      case AppRoute.MEDICINE_ORDER: return <MedicineArbitragePage />;
+      case AppRoute.PHARMACY_MAP: return <InteractiveMap />;
+      case AppRoute.AMBULANCE: return <AmbulancePage />;
+      case AppRoute.TUMOR_3D: return <Tumor3DViewer />;
+
+      case AppRoute.GROWTH_PREDICTION: return <GrowthPredictionPage />;
+
+      case AppRoute.NEURO_ANALYSIS: return <NeuroAnalysisPage />;
+      case AppRoute.CAREGIVER_DASHBOARD: return <CaregiverDashboard />;
+      case AppRoute.CLINICIAN_DASHBOARD: return <ClinicianDashboard />;
+      case AppRoute.KNOWLEDGE_BASE: return <ResearchHubPage />;
+      case AppRoute.ANALYTICS: return <AnalyticsPage />;
+
+
+
+      default: return <Dashboard scans={scans} onScanClick={navigateToResults} />;
+
+
     }
   };
 
   return (
-    <>
-      {/* Futuristic Particle Background */}
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">{/* White background */}
       <ParticleField />
-      
-      {/* Global Voice Command System */}
-      <VoiceCommandSystem 
+
+      <VoiceCommandSystem
         onNavigate={setCurrentRoute}
         onAction={(action, params) => {
-          console.log('Voice action:', action, params);
-          // Handle voice actions here
+          console.log('Main Action:', action, params);
+          if (action === 'open_file_selector') {
+            // Logic to open file selector via ref or event dispatch
+            const fileInput = document.getElementById('scan-upload-input');
+            if (fileInput) fileInput.click();
+          }
         }}
       />
-      
-      <AppShell 
-        currentRoute={currentRoute} 
-        onNavigate={setCurrentRoute}
-      >
+
+      <AppShell currentRoute={currentRoute} onNavigate={setCurrentRoute}>
         {renderContent()}
       </AppShell>
-      
-      {/* Futuristic AI Chat - Available on all pages */}
+
       <FuturisticAIChat />
-    </>
+    </div>
   );
 };
 
 export default App;
+

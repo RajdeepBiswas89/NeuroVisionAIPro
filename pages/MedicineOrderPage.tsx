@@ -19,23 +19,21 @@ const MedicineOrderPage: React.FC = () => {
 
         {/* Tab Navigation */}
         <div className="flex justify-center mb-8">
-          <div className="bg-white rounded-xl p-1 shadow-lg inline-flex">
+          <div className="bg-white rounded-xl p-1.5 shadow-lg inline-flex border-2 border-gray-200">
             <button
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === 'order'
+              className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === 'order'
                   ? 'bg-[#2A9D8F] text-white shadow-md'
-                  : 'text-gray-600 hover:text-[#2A9D8F]'
-              }`}
+                  : 'text-gray-700 hover:text-[#2A9D8F] hover:bg-gray-50'
+                }`}
               onClick={() => setActiveTab('order')}
             >
               Order Medicines
             </button>
             <button
-              className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-                activeTab === 'map'
+              className={`px-6 py-3 rounded-lg font-semibold transition-all ${activeTab === 'map'
                   ? 'bg-[#2A9D8F] text-white shadow-md'
-                  : 'text-gray-600 hover:text-[#2A9D8F]'
-              }`}
+                  : 'text-gray-700 hover:text-[#2A9D8F] hover:bg-gray-50'
+                }`}
               onClick={() => setActiveTab('map')}
             >
               Find Pharmacies
